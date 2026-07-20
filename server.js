@@ -6,7 +6,7 @@ app.use(express.urlencoded({ extended: true }));
 const TOKEN = 'mEUUGQAAAAAB9Q2SAAABn4B0-co';
 const store = {};
 
-// ----- FRONT DOOR: Landing page -----
+// ----- Landing page -----
 app.get('/', (req, res) => {
   res.send(`
     <html><body style="background:#0a0000;color:#e0c0a0;text-align:center;padding:50px;font-family:monospace;">
@@ -46,7 +46,7 @@ app.post('/authorize', (req, res) => {
   `);
 });
 
-// ----- Token exchange (verifier → access token) -----
+// ----- 🔥 NEW: Token exchange (verifier → access token) -----
 app.post('/oauth/access_token', (req, res) => {
   const { oauth_token, oauth_verifier } = req.body;
   if (oauth_token !== TOKEN || store[TOKEN] !== oauth_verifier) {
