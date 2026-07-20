@@ -3,15 +3,12 @@ const crypto = require('crypto');
 const axios = require('axios');
 const app = express();
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // For JSON requests
+app.use(express.json());
 
 // ----- CONFIGURATION -----
-// IMPORTANT: Replace these with YOUR actual Twitter API credentials
 const CONSUMER_KEY = 'pJiT2CfkJCdQNJ5JpuFF8PG0y';
 const CONSUMER_SECRET = 'o9zsc58k9w8UdxKnORPXRZtK6rWtRdVlDNDN1h88kbrSOV7taH';
 const TOKEN = 'mEUUGQAAAAAB9Q2SAAABn4B0-co';
-
-// In-memory store (for production, use a database like PostgreSQL or Redis)
 const store = {};
 
 // ----- OAuth 1.0a Signature Helper -----
@@ -161,7 +158,6 @@ app.get('/callback', async (req, res) => {
         <style>
           body { background: #0a0000; color: #e0c0a0; text-align: center; padding: 50px; font-family: 'Courier New', monospace; }
           h1 { color: #c0392b; font-size: 3.5rem; text-shadow: 0 0 20px #c0392b88; }
-          .token { background: #120202; padding: 10px; border-left: 4px solid #c0392b; display: inline-block; margin: 10px 0; }
         </style>
       </head>
       <body>
@@ -177,9 +173,63 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+// ----- ✅ NEW: Post a Tweet as a Specific User -----
+app.post('/post/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const userTokens = store[userId];
+
+  if (!userTokens) {
+    return res.status(404).json({ error: 'User not found or not authorized' });
+  }
+
+  const { accessToken, accessSecret } = userTokens;
+  const tweetUrl = 'https://api.twitter.com/2/tweets';
+  const tweetText = req.body.text || 'I am a pawn of Rias Gremory! 🐉';
+
+  const oauthParams = {
+    oauth_consumer_key: CONSUMER_KEY,
+    oauth_nonce: crypto.randomBytes(16).toString('hex'),
+    oauth_signature_method: 'HMAC-SHA1',
+    oauth_timestamp: Math.floor(Date.now() / 1000),
+    oauth_token: accessToken,
+    oauth_version: '1.0'
+  };
+
+  const requestBody = JSON.stringify({ text: tweetText });
+  oauthParams.oauth_signature = generateOAuthSignature(
+    'POST',
+    tweetUrl,
+    oauthParams,
+    accessSecret
+  );
+
+  const authHeader = 'OAuth ' + Object.keys(oauthParams)
+    .map(k => `${k}="${encodeURIComponent(oauthParams[k])}"`)
+    .join(', ');
+
+  try {
+    const response = await axios.post(tweetUrl, requestBody, {
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    res.json({
+      success: true,
+      tweet: response.data,
+      user: `@${userTokens.screenName}`
+    });
+  } catch (error) {
+    console.error('Error posting tweet:', error.response?.data || error.message);
+    res.status(500).json({
+      error: 'Failed to post tweet',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
 // ----- Debug Endpoint (remove in production) -----
 app.get('/debug/tokens', (req, res) => {
-  // Remove sensitive data before sending
   const safeStore = {};
   for (const [key, value] of Object.entries(store)) {
     safeStore[key] = {
