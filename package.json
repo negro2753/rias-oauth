@@ -1,6 +1,11 @@
 {
   "name": "rias-oauth",
   "version": "1.0.0",
+  "description": "Rias Gremory OAuth 1.0a gateway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "express": "^4.18.2"
   }
